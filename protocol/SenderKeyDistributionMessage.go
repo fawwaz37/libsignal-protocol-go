@@ -20,10 +20,18 @@ type SenderKeyDistributionMessageSerializer interface {
 func NewSenderKeyDistributionMessageFromBytes(serialized []byte,
 	serializer SenderKeyDistributionMessageSerializer) (*SenderKeyDistributionMessage, error) {
 
+	if serializer == nil {
+		return nil, fmt.Errorf("serializer cannot be nil")
+	}
+
 	// Use the given serializer to decode the signal message.
 	signalMessageStructure, err := serializer.Deserialize(serialized)
 	if err != nil {
 		return nil, err
+	}
+
+	if signalMessageStructure == nil {
+		return nil, fmt.Errorf("deserializer returned nil structure")
 	}
 
 	return NewSenderKeyDistributionMessageFromStruct(signalMessageStructure, serializer)
@@ -33,6 +41,14 @@ func NewSenderKeyDistributionMessageFromBytes(serialized []byte,
 // given serializable structure.
 func NewSenderKeyDistributionMessageFromStruct(structure *SenderKeyDistributionMessageStructure,
 	serializer SenderKeyDistributionMessageSerializer) (*SenderKeyDistributionMessage, error) {
+
+	if structure == nil {
+		return nil, fmt.Errorf("structure cannot be nil")
+	}
+
+	if serializer == nil {
+		return nil, fmt.Errorf("serializer cannot be nil")
+	}
 
 	// Throw an error if the given message structure is an unsupported version.
 	if structure.Version <= UnsupportedVersion {
@@ -79,13 +95,23 @@ func NewSenderKeyDistributionMessage(id uint32, iteration uint32,
 	chainKey []byte, signatureKey ecc.ECPublicKeyable,
 	serializer SenderKeyDistributionMessageSerializer) *SenderKeyDistributionMessage {
 
-	return &SenderKeyDistributionMessage{
+	if signatureKey == nil {
+		return nil
+	}
+
+	if serializer == nil {
+		return nil
+	}
+
+	message := &SenderKeyDistributionMessage{
 		id:           id,
 		iteration:    iteration,
 		chainKey:     chainKey,
 		signatureKey: signatureKey,
 		serializer:   serializer,
 	}
+
+	return message
 }
 
 // SenderKeyDistributionMessageStructure is a serializeable structure for senderkey
@@ -110,27 +136,53 @@ type SenderKeyDistributionMessage struct {
 
 // ID will return the message's id.
 func (p *SenderKeyDistributionMessage) ID() uint32 {
+	if p == nil {
+		return 0
+	}
 	return p.id
 }
 
 // Iteration will return the message's iteration.
 func (p *SenderKeyDistributionMessage) Iteration() uint32 {
+	if p == nil {
+		return 0
+	}
 	return p.iteration
 }
 
 // ChainKey will return the message's chain key in bytes.
 func (p *SenderKeyDistributionMessage) ChainKey() []byte {
+	if p == nil {
+		return nil
+	}
 	return p.chainKey
 }
 
 // SignatureKey will return the message's signature public key
 func (p *SenderKeyDistributionMessage) SignatureKey() ecc.ECPublicKeyable {
+	if p == nil {
+		return nil
+	}
 	return p.signatureKey
 }
 
 // Serialize will use the given serializer and return the message as
 // bytes.
 func (p *SenderKeyDistributionMessage) Serialize() []byte {
+	if p == nil {
+		return nil
+	}
+
+	// Validate critical fields before proceeding
+	if p.signatureKey == nil {
+		return nil
+	}
+
+	if p.serializer == nil {
+		return nil
+	}
+
+	// Create structure for serialization
 	structure := &SenderKeyDistributionMessageStructure{
 		ID:         p.id,
 		Iteration:  p.iteration,
@@ -138,10 +190,17 @@ func (p *SenderKeyDistributionMessage) Serialize() []byte {
 		SigningKey: p.signatureKey.Serialize(),
 		Version:    CurrentVersion,
 	}
-	return p.serializer.Serialize(structure)
+
+	// Perform actual serialization
+	result := p.serializer.Serialize(structure)
+
+	return result
 }
 
 // Type will return the message's type.
 func (p *SenderKeyDistributionMessage) Type() uint32 {
+	if p == nil {
+		return 0
+	}
 	return SENDERKEY_DISTRIBUTION_TYPE
 }

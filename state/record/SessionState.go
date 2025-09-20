@@ -202,12 +202,18 @@ func (s *State) SetRootKey(rootKey session.RootKeyable) {
 
 // SenderRatchetKey returns the public ratchet key of the sender.
 func (s *State) SenderRatchetKey() ecc.ECPublicKeyable {
+	if s.senderChain == nil {
+		return nil
+	}
 	return s.senderChain.senderRatchetKeyPair.PublicKey()
 }
 
 // SenderRatchetKeyPair returns the public/private ratchet key pair
 // of the sender.
 func (s *State) SenderRatchetKeyPair() *ecc.ECKeyPair {
+	if s.senderChain == nil {
+		return nil
+	}
 	return s.senderChain.senderRatchetKeyPair
 }
 
@@ -248,9 +254,12 @@ func (s *State) receiverChain(senderEphemeral ecc.ECPublicKeyable) *ReceiverChai
 // chain key.
 func (s *State) ReceiverChainKey(senderEphemeral ecc.ECPublicKeyable) *chain.Key {
 	receiverChainAndIndex := s.receiverChain(senderEphemeral)
+	if receiverChainAndIndex == nil {
+		return nil
+	}
 	receiverChain := receiverChainAndIndex.ReceiverChain
 
-	if receiverChainAndIndex == nil || receiverChain == nil {
+	if receiverChain == nil {
 		return nil
 	}
 
@@ -294,6 +303,9 @@ func (s *State) SetSenderChain(senderRatchetKeyPair *ecc.ECKeyPair, chainKey ses
 
 // SenderChainKey will return the chain key of the session state.
 func (s *State) SenderChainKey() session.ChainKeyable {
+	if s.senderChain == nil {
+		return nil
+	}
 	chainKey := s.senderChain.chainKey
 	return chain.NewKey(kdf.DeriveSecrets, chainKey.Key(), chainKey.Index())
 }
@@ -301,6 +313,9 @@ func (s *State) SenderChainKey() session.ChainKeyable {
 // SetSenderChainKey will set the chain key in the chain state for this session to
 // the given chain key.
 func (s *State) SetSenderChainKey(nextChainKey session.ChainKeyable) {
+	if s.senderChain == nil {
+		return
+	}
 	senderChain := s.senderChain
 	senderChain.SetChainKey(nextChainKey.(*chain.Key))
 }
@@ -512,6 +527,12 @@ func (s *State) structure() *StateStructure {
 		pendingKeyExchange = s.pendingKeyExchange.structure()
 	}
 
+	// Convert our sender chain into a serializeable structure
+	var senderChain *ChainStructure
+	if s.senderChain != nil {
+		senderChain = s.senderChain.structure()
+	}
+
 	// Build and return our state structure.
 	return &StateStructure{
 		LocalIdentityPublic:  s.localIdentityPublic.Serialize(),
@@ -525,7 +546,7 @@ func (s *State) structure() *StateStructure {
 		RemoteRegistrationID: s.remoteRegistrationID,
 		RootKey:              s.rootKey.Bytes(),
 		SenderBaseKey:        s.senderBaseKey.Serialize(),
-		SenderChain:          s.senderChain.structure(),
+		SenderChain:          senderChain,
 		SessionVersion:       s.sessionVersion,
 	}
 }

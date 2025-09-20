@@ -75,6 +75,9 @@ func (j *ProtoBufSignalMessageSerializer) Deserialize(serialized []byte) (*proto
 		logger.Error("Error split signal message: ", err)
 		return nil, err
 	}
+	if len(parts[0]) == 0 {
+		return nil, fmt.Errorf("invalid message format: empty version part")
+	}
 	version := highBitsToInt(parts[0][0])
 	message := parts[1]
 	mac := parts[2]
@@ -128,6 +131,9 @@ func (j *ProtoBufPreKeySignalMessageSerializer) Serialize(signalMessage *protoco
 
 // Deserialize will take in ProtoBuf bytes and return a prekey signal message structure.
 func (j *ProtoBufPreKeySignalMessageSerializer) Deserialize(serialized []byte) (*protocol.PreKeySignalMessageStructure, error) {
+	if len(serialized) == 0 {
+		return nil, fmt.Errorf("empty serialized data")
+	}
 	version := highBitsToInt(serialized[0])
 	message := serialized[1:]
 	var sm PreKeySignalMessage
@@ -182,6 +188,9 @@ func (j *ProtoBufSenderKeyDistributionMessageSerializer) Serialize(message *prot
 // Deserialize will take in ProtoBuf bytes and return a message structure, which can be
 // used to create a new SenderKey Distribution object.
 func (j *ProtoBufSenderKeyDistributionMessageSerializer) Deserialize(serialized []byte) (*protocol.SenderKeyDistributionMessageStructure, error) {
+	if len(serialized) == 0 {
+		return nil, fmt.Errorf("empty serialized data")
+	}
 	version := uint32(highBitsToInt(serialized[0]))
 	message := serialized[1:]
 
@@ -238,6 +247,9 @@ func (j *ProtoBufSenderKeyMessageSerializer) Deserialize(serialized []byte) (*pr
 	if err != nil {
 		logger.Error("Error split signal message: ", err)
 		return nil, err
+	}
+	if len(parts[0]) == 0 {
+		return nil, fmt.Errorf("invalid message format: empty version part")
 	}
 	version := uint32(highBitsToInt(parts[0][0]))
 	message := parts[1]

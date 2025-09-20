@@ -76,8 +76,14 @@ func (d *Cipher) Encrypt(ctx context.Context, plaintext []byte) (protocol.Cipher
 	}
 	sessionState := sessionRecord.SessionState()
 	chainKey := sessionState.SenderChainKey()
+	if chainKey == nil {
+		return nil, fmt.Errorf("session state has no sender chain")
+	}
 	messageKeys := chainKey.MessageKeys()
 	senderEphemeral := sessionState.SenderRatchetKey()
+	if senderEphemeral == nil {
+		return nil, fmt.Errorf("session state has no sender ratchet key")
+	}
 	previousCounter := sessionState.PreviousCounter()
 	sessionVersion := sessionState.Version()
 
@@ -359,6 +365,9 @@ func getOrCreateChainKey(sessionState *record.State, theirEphemeral ecc.ECPublic
 	// If we don't have a chain key, create one with ephemeral keys.
 	rootKey := sessionState.RootKey()
 	ourEphemeral := sessionState.SenderRatchetKeyPair()
+	if ourEphemeral == nil {
+		return nil, fmt.Errorf("session state has no sender ratchet key pair")
+	}
 	receiverChain, rErr := rootKey.CreateChain(theirEphemeral, ourEphemeral)
 	if rErr != nil {
 		return nil, rErr
@@ -379,9 +388,15 @@ func getOrCreateChainKey(sessionState *record.State, theirEphemeral ecc.ECPublic
 	// Set our session state parameters.
 	sessionState.SetRootKey(senderChain.RootKey)
 	sessionState.AddReceiverChain(theirEphemeral, receiverChain.ChainKey)
-	previousCounter := max(sessionState.SenderChainKey().Index()-1, 0)
-	sessionState.SetPreviousCounter(previousCounter)
 	sessionState.SetSenderChain(ourNewEphemeral, senderChain.ChainKey)
+
+	// Calculate previous counter after setting sender chain
+	senderChainKey := sessionState.SenderChainKey()
+	var previousCounter uint32
+	if senderChainKey != nil {
+		previousCounter = max(senderChainKey.Index()-1, 0)
+	}
+	sessionState.SetPreviousCounter(previousCounter)
 
 	return receiverChain.ChainKey.(*chain.Key), nil
 }
