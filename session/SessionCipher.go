@@ -396,15 +396,11 @@ func getOrCreateChainKey(sessionState *record.State, theirEphemeral ecc.ECPublic
 	// Set our session state parameters.
 	sessionState.SetRootKey(senderChain.RootKey)
 	sessionState.AddReceiverChain(theirEphemeral, receiverChain.ChainKey)
-	sessionState.SetSenderChain(ourNewEphemeral, senderChain.ChainKey)
-
-	// Calculate previous counter after setting sender chain
-	senderChainKey := sessionState.SenderChainKey()
-	var previousCounter uint32
-	if senderChainKey != nil {
-		previousCounter = max(senderChainKey.Index()-1, 0)
-	}
+	// Must read the old sender chain (before SetSenderChain). Index is uint32,
+	// so max(i, 1)-1 is libsignal's max(i-1, 0) without wrapping at i == 0.
+	previousCounter := max(sessionState.SenderChainKey().Index(), 1) - 1
 	sessionState.SetPreviousCounter(previousCounter)
+	sessionState.SetSenderChain(ourNewEphemeral, senderChain.ChainKey)
 
 	return receiverChain.ChainKey.(*chain.Key), nil
 }
